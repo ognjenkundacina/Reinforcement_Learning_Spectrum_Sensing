@@ -77,7 +77,7 @@ class DeepQLearningAgent:
                 # found, so we pick action with the larger expected reward.
                 action_index = self.policy_net(state).max(1)[1].view(1, 1)
                 self.policy_net.train()
-                return action_index #todo check if it is 0..15
+                return action_index
         else:
             return torch.tensor([[random.randint(0, self.n_actions-1)]], dtype=torch.int)    
 
@@ -102,7 +102,7 @@ class DeepQLearningAgent:
                 if (i <= 16):
                     continue
                 action = self.get_action(state) #0..15
-                if (action > 15):  #todo ovo skloni kasnije zbog brzine
+                if (action > 15):  #todo remove this later
                     print ("Error, action has value greater than 15")
                 obs = get_obs_from_df_row(rows)
                 next_state, reward = self.environment.step(action, obs)

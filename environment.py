@@ -2,8 +2,6 @@ import gym
 from gym import spaces
 import random
 import numpy as np 
-from gym.spaces import Tuple
-from gym.spaces import Space #todo provjeri treba li zadnje dvoje
 
 #environment should have the entire dataset as an input parameter, but train and test methods
 class Environment(gym.Env):
