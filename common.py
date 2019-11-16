@@ -20,3 +20,18 @@ def get_initial_state_variables(df):
 def get_obs_from_df_row(row):
     temp_list =[row.channel0, row.channel1, row.channel2, row.channel3, row.channel4, row.channel5, row.channel6, row.channel7, row.channel8, row.channel9, row.channel10, row.channel11, row.channel12, row.channel13, row.channel14, row.channel15] 
     return temp_list
+
+def split_dataframe(df):
+    step = 200
+    num_splits = len(df) // step
+    df_list = []
+    lower_index = 0
+
+    for i in range (num_splits):
+        df_list.append(df[ (df.index >= lower_index) * ((df.index < lower_index + step)) ])
+        lower_index += step
+
+    if (len(df) != len(df_list[1]) * num_splits ):
+        print ("Warning: trainset may not be split correctly")
+
+    return df_list

@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
-from common import get_initial_state_variables, get_obs_from_df_row
+from common import get_initial_state_variables, get_obs_from_df_row, split_dataframe
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -36,24 +36,38 @@ class ReplayMemory(object):
 class DQN(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(input_size, 200)
-        self.fc2 = nn.Linear(200, 200)
-        self.fc3 = nn.Linear(200, output_size)
-        #self.fc2_bn = nn.BatchNorm1d(200) consider this
+        self.fc1 = nn.Linear(input_size, 50)
+        self.fc2 = nn.Linear(50, 50)
+        self.fc3 = nn.Linear(50, 50)
+        self.fc3_bn = nn.BatchNorm1d(50)
+        self.fc4 = nn.Linear(50, output_size)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        return self.fc3(x)
+        x = F.relu(self.fc3_bn(self.fc3(x)))
+        return self.fc4(x)
+
+#    def __init__(self, input_size, output_size):
+#        super(DQN, self).__init__()
+#        self.fc1 = nn.Linear(input_size, 200)
+#        self.fc2 = nn.Linear(200, 200)
+#        self.fc3 = nn.Linear(200, output_size)
+#
+#    def forward(self, x):
+#        x = F.leaky_relu(self.fc1(x)) #todo leaky relu?
+#        x = F.leaky_relu(self.fc2(x))
+#        return self.fc3(x)
 
 class DeepQLearningAgent:
 
     def __init__(self, environment):
         self.environment = environment
         self.epsilon = 0.1
-        self.gamma = 0.99 #best, tested
         self.batch_size = 32
-        self.target_update = 10
+        self.gamma = 0.9
+        #self.gamma = 0.99 #best, tested
+        self.target_update = 1
         self.memory = ReplayMemory(1000000)
 
         self.state_space_dims = environment.state_space_dims
@@ -65,7 +79,8 @@ class DeepQLearningAgent:
 
         self.policy_net.train() #train mode (train vs eval mode)
 
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001) 
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.00001) 
+        #self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
 
     #returns channel id: 0..15
     def get_action(self, state):
@@ -75,9 +90,9 @@ class DeepQLearningAgent:
                 # t.max(1) will return largest column value of each row.
                 # second column on max result is index of where max element was
                 # found, so we pick action with the larger expected reward.
-                action_index = self.policy_net(state).max(1)[1].view(1, 1)
+                action = self.policy_net(state).max(1)[1].view(1, 1)
                 self.policy_net.train()
-                return action_index
+                return action
         else:
             return torch.tensor([[random.randint(0, self.n_actions-1)]], dtype=torch.int)    
 
@@ -85,26 +100,29 @@ class DeepQLearningAgent:
         train_initial_state_variables = get_initial_state_variables(df_train)
         return self.environment.reset(train_initial_state_variables)
 
-    def train(self, df_train, n_episodes):
+    def train(self, df_train_total, n_episodes):
+    ####def train(self, df_train, n_episodes):
 
+        df_train_list = split_dataframe(df_train_total)
         for i_episode in range(n_episodes):
             if (i_episode % 1 == 0):
                 print ("Episode: ", i_episode)
 
+            df_train = random.choice(df_train_list)
             state = self.reset_environment_training(df_train) 
             state = torch.tensor([state], dtype=torch.float)
             total_episode_reward = 0 
             total_episode_reward = torch.tensor([total_episode_reward], dtype=torch.float).view(-1,1)
             i = 0
 
-            for index, rows in df_train.iterrows(): 
+            for index, row in df_train.iterrows(): 
                 i += 1
                 if (i <= 16):
                     continue
                 action = self.get_action(state) #0..15
                 if (action > 15):  #todo remove this later
                     print ("Error, action has value greater than 15")
-                obs = get_obs_from_df_row(rows)
+                obs = get_obs_from_df_row(row)
                 next_state, reward = self.environment.step(action, obs)
                 reward = torch.tensor([reward], dtype=torch.float)
                 action = torch.tensor([action], dtype=torch.int)
@@ -128,9 +146,30 @@ class DeepQLearningAgent:
         torch.save(self.policy_net.state_dict(), "policy_net")   
 
     def test(self, df_test):
-        test_initial_state_variables = get_initial_state_variables(df_test)
-        state = self.environment.reset(test_initial_state_variables) #tddo use reset_environment_training
+        state = self.reset_environment_training(df_test) 
+        total_reward = 0 
+        total_discounted_reward = 0
 
+        self.policy_net.load_state_dict(torch.load("policy_net"))
+        self.policy_net.eval()
+        i = 0
+
+        for index, row in df_test.iterrows():
+            i += 1
+            if (i <= 16):
+                continue
+            state = torch.tensor([state], dtype=torch.float)
+            action = self.policy_net(state).max(1)[1].view(1, 1)
+            if (action > 15):
+                print ("Error, action has value greater than 15")
+            
+            obs = get_obs_from_df_row(row)
+            next_state, reward = self.environment.step(action, obs)
+            total_reward += reward
+            total_discounted_reward += reward * self.gamma**(i-17)
+            state = next_state
+        print ("Test set reward ", total_reward)
+        print ("Test set discounted reward ", total_discounted_reward)
 
 
     def optimize_model(self):
