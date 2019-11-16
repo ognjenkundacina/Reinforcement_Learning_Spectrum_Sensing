@@ -82,7 +82,7 @@ class DeepQLearningAgent:
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.00001) 
         #self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
 
-    #returns channel id: 0..15
+    #returns channel id: 0..7
     def get_action(self, state):
         if random.random() > self.epsilon:
             self.policy_net.eval()
@@ -117,11 +117,11 @@ class DeepQLearningAgent:
 
             for index, row in df_train.iterrows(): 
                 i += 1
-                if (i <= 16):
+                if (i <= 32):
                     continue
-                action = self.get_action(state) #0..15
-                if (action > 15):  #todo remove this later
-                    print ("Error, action has value greater than 15")
+                action = self.get_action(state) #0..7
+                if (action > 7):  #todo remove this later
+                    print ("Error, action has value greater than 7")
                 obs = get_obs_from_df_row(row)
                 next_state, reward = self.environment.step(action, obs)
                 reward = torch.tensor([reward], dtype=torch.float)
@@ -156,17 +156,17 @@ class DeepQLearningAgent:
 
         for index, row in df_test.iterrows():
             i += 1
-            if (i <= 16):
+            if (i <= 32):
                 continue
             state = torch.tensor([state], dtype=torch.float)
             action = self.policy_net(state).max(1)[1].view(1, 1)
-            if (action > 15):
-                print ("Error, action has value greater than 15")
+            if (action > 7):
+                print ("Error, action has value greater than 7")
             
             obs = get_obs_from_df_row(row)
             next_state, reward = self.environment.step(action, obs)
             total_reward += reward
-            total_discounted_reward += reward * self.gamma**(i-17)
+            total_discounted_reward += reward * self.gamma**(i-33)
             state = next_state
         print ("Test set reward ", total_reward)
         print ("Test set discounted reward ", total_discounted_reward)

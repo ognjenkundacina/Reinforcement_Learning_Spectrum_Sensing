@@ -12,23 +12,26 @@ class Environment(gym.Env):
         self.state = None
         self.state_space_dims = 256
         #self.action_space_dims = 1
-        #actions are 0..15
-        self.n_actions = 16
+        #actions are 0..7
+        self.n_actions = 8
 
     def step(self, action, obs):
         #update state
         start_size = len(self.state)
         self.state += obs
-        self.state = self.state[16:]
+        self.state = self.state[8:]
         next_state = self.state
         if (start_size != len(self.state)):
             print("Error in update state")
+
+        if (256 != len(self.state)):
+            print("Error: state size not equal to 256")
 
         reward = self.calculate_reward(action, obs)
 
         return next_state, reward
 
-    #action takes values 0..15, so do indices of obs that has 16 values
+    #action takes values 0..7, so do indices of obs that has 8 values
     def calculate_reward(self, action, obs):
         reward = 0.0
         if (obs[action] == 1):
