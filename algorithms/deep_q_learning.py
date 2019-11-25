@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
-from common import get_initial_state_variables, get_obs_from_df_row, split_dataframe
+from common import get_initial_state_variables, get_obs_from_df_row
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -100,22 +100,22 @@ class DeepQLearningAgent:
         train_initial_state_variables = get_initial_state_variables(df_train)
         return self.environment.reset(train_initial_state_variables)
 
-    def train(self, df_train_total, n_episodes):
-    ####def train(self, df_train, n_episodes):
+    def train(self, df_train, n_episodes, episode_length):
 
-        df_train_list = split_dataframe(df_train_total)
+        length_df_train = df_train.shape[0]
         for i_episode in range(n_episodes):
             if (i_episode % 1 == 0):
                 print ("Episode: ", i_episode)
 
-            df_train = random.choice(df_train_list)
-            state = self.reset_environment_training(df_train) 
+            lower_index = random.randrange(length_df_train - episode_length)
+            df_train_episode =  df_train[ (df_train.index >= lower_index) * ((df_train.index < lower_index + episode_length)) ]
+            state = self.reset_environment_training(df_train_episode) 
             state = torch.tensor([state], dtype=torch.float)
             total_episode_reward = 0 
             total_episode_reward = torch.tensor([total_episode_reward], dtype=torch.float).view(-1,1)
             i = 0
 
-            for index, row in df_train.iterrows(): 
+            for index, row in df_train_episode.iterrows(): 
                 i += 1
                 if (i <= 32):
                     continue
@@ -127,7 +127,7 @@ class DeepQLearningAgent:
                 reward = torch.tensor([reward], dtype=torch.float)
                 action = torch.tensor([action], dtype=torch.int)
                 next_state = torch.tensor([next_state], dtype=torch.float)
-                if (index == df_train.index[-1]):
+                if (index == df_train_episode.index[-1]):
                     next_state = None
 
                 self.memory.push(state, action, next_state, reward)
@@ -170,6 +170,30 @@ class DeepQLearningAgent:
             state = next_state
         print ("Test set reward ", total_reward)
         print ("Test set discounted reward ", total_discounted_reward)
+        
+    def test_random_policy(self, df_test):
+        state = self.reset_environment_training(df_test) 
+        total_reward = 0 
+        total_discounted_reward = 0
+
+        i = 0
+
+        for index, row in df_test.iterrows():
+            i += 1
+            if (i <= 32):
+                continue
+            state = torch.tensor([state], dtype=torch.float)
+            action = torch.tensor([[random.randint(0, self.n_actions-1)]], dtype=torch.int)
+            if (action > 7):
+                print ("Error, action has value greater than 7")
+            
+            obs = get_obs_from_df_row(row)
+            next_state, reward = self.environment.step(action, obs)
+            total_reward += reward
+            total_discounted_reward += reward * self.gamma**(i-33)
+            state = next_state
+        print ("Random policy test set reward ", total_reward)
+        print ("Random policy test set discounted reward ", total_discounted_reward)
 
 
     def optimize_model(self):
