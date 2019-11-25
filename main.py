@@ -7,10 +7,13 @@ import time
 
 def load_dataset():
     script_dir = os.path.dirname(__file__)
-    #file_path = os.path.join(script_dir, './dataset/perfectly_correlated.csv') #5200 rows
-    file_path = os.path.join(script_dir, './dataset/real_data_trace.csv') #5200 rows
-    #file_path = os.path.join(script_dir, './dataset/single_channel_no_prob.csv') #5200 rows
+    file_path = os.path.join(script_dir, './dataset/perfectly_correlated.csv') #5200 rows
+    #file_path = os.path.join(script_dir, './dataset/real_data_trace.csv') #5200 rows
+    #file_path = os.path.join(script_dir, './dataset/single_channel_no_prob_strange_order.csv') #5200 rows
     #file_path = os.path.join(script_dir, './dataset/single_channel_with_switching_prob.csv') #5200 rows
+    #file_path = os.path.join(script_dir, './dataset/multiple_channels_with_switching_prob.csv') #5200 rows
+    #file_path = os.path.join(script_dir, './dataset/multiple_channels_no_prob.csv') #5200 rows
+
     df = pd.read_csv(file_path)
 
     df_train = df[df.index <= 4599]
@@ -27,17 +30,16 @@ def main():
     agent = DeepQLearningAgent(environment)
 
     n_episodes = 800
+    episode_length = 200
     ####n_episodes = 25
     print('agent training started')
     t1 = time.time()
-    agent.train(df_train, n_episodes)
+    agent.train(df_train, n_episodes, episode_length)
     t2 = time.time()
     print ('agent training finished in', t2-t1)
 
     print ('Test on the test dataset')
     agent.test(df_test)
-    print ('Test on the train dataset')
-    agent.test(df_train)
 
 
 if __name__ == '__main__':
