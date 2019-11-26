@@ -66,9 +66,9 @@ class DeepQLearningAgent:
         self.epsilon = 0.1
         self.batch_size = 32
         self.gamma = 0.9
-        #self.gamma = 0.99 #best, tested
+        #self.gamma = 0.99
         self.target_update = 1
-        self.memory = ReplayMemory(1000000)
+        self.memory = ReplayMemory(250000)
 
         self.state_space_dims = environment.state_space_dims
         self.n_actions = environment.n_actions
