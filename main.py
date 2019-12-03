@@ -33,7 +33,7 @@ def main():
     t2 = time.time()
     print ('agent training finished in', t2-t1)
     print ('Test on the test dataset')
-    bit_error_rate_percent = agent.test(df_test)
+    transfered_messages_percent = agent.test(df_test)
     #agent.test_random_policy(df_test)
         
 
