@@ -15,11 +15,20 @@ class Environment(gym.Env):
         #actions are 0..15
         self.n_actions = 16
 
+    def _obs_intersect_action(self, obs, action):
+        temp = [0 for j in range(self.n_actions)]
+        if (obs[action] == 1):
+            temp[action] = 1
+        elif (obs[action] == 0):
+            temp[action] = -1
+        #print ('TEMP: ', temp)
+        return temp
+
     def step(self, action, obs):
         #update state
         start_size = len(self.state)
-        self.state += obs
-        self.state = self.state[16:]
+        self.state += self._obs_intersect_action(obs, action)
+        self.state = self.state[self.n_actions:]
         next_state = self.state
         if (start_size != len(self.state)):
             print("Error in update state")
@@ -42,4 +51,3 @@ class Environment(gym.Env):
     def reset(self, state_variables):
         self.state = state_variables
         return self.state
-

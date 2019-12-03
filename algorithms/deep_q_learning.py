@@ -1,6 +1,8 @@
 from collections import namedtuple
 from itertools import count
 import random
+import time
+import matplotlib.pyplot as plt 
 
 import torch
 import torch.nn as nn
@@ -43,9 +45,9 @@ class DQN(nn.Module):
         self.fc4 = nn.Linear(50, output_size)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3_bn(self.fc3(x)))
+        x = F.leaky_relu(self.fc1(x))
+        x = F.leaky_relu(self.fc2(x))
+        x = F.leaky_relu(self.fc3_bn(self.fc3(x)))
         return self.fc4(x)
 
 #    def __init__(self, input_size, output_size):
@@ -66,7 +68,7 @@ class DeepQLearningAgent:
         self.epsilon = 0.1
         self.batch_size = 32
         self.gamma = 0.9
-        #self.gamma = 0.99
+        #self.gamma = 0.99 #best, tested
         self.target_update = 1
         self.memory = ReplayMemory(250000)
 
@@ -103,9 +105,12 @@ class DeepQLearningAgent:
     def train(self, df_train, n_episodes, episode_length):
 
         length_df_train = df_train.shape[0]
+        total_episode_rewards = []
         for i_episode in range(n_episodes):
             if (i_episode % 1 == 0):
                 print ("Episode: ", i_episode)
+            if (i_episode % 200 == 199):
+                time.sleep(15)
 
             lower_index = random.randrange(length_df_train - episode_length)
             df_train_episode =  df_train[ (df_train.index >= lower_index) * ((df_train.index < lower_index + episode_length)) ]
@@ -140,14 +145,27 @@ class DeepQLearningAgent:
             if (i_episode % 1 == 0):
                 print ("total_episode_reward: ", total_episode_reward)
 
+            total_episode_rewards.append(total_episode_reward)
+
             if i_episode % self.target_update == 0:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
+                
+            if (i_episode % 500 == 0):
+                torch.save(self.policy_net.state_dict(), "policy_net")   
 
-        torch.save(self.policy_net.state_dict(), "policy_net")   
+        torch.save(self.policy_net.state_dict(), "policy_net")
+
+        x_axis = [1 + j for j in range(len(total_episode_rewards))]
+        plt.plot(x_axis, total_episode_rewards)
+        plt.xlabel('Episode number') 
+        plt.ylabel('Episode bit error rate') 
+        plt.savefig("episode_bit_err_rate.png")
+
+
 
     def test(self, df_test):
         state = self.reset_environment_training(df_test) 
-        total_reward = 0 
+        bit_error_rate_abs = 0 
         total_discounted_reward = 0
 
         self.policy_net.load_state_dict(torch.load("policy_net"))
@@ -165,11 +183,17 @@ class DeepQLearningAgent:
             
             obs = get_obs_from_df_row(row)
             next_state, reward = self.environment.step(action, obs)
-            total_reward += reward
+            if (reward > 0):
+                bit_error_rate_abs += reward
             total_discounted_reward += reward * self.gamma**(i-17)
             state = next_state
-        print ("Test set reward ", total_reward)
+        bit_error_rate_percent = bit_error_rate_abs * 100.0 / ((df_test.shape[0] - 16.0) * 1.0)
+        print ("Bit error rate ", bit_error_rate_percent)
+        print ("Bit error rate abs: ", bit_error_rate_abs)
+        print ("Number of messages: ", df_test.shape[0] - 16.0)
         print ("Test set discounted reward ", total_discounted_reward)
+
+        return bit_error_rate_percent
         
         
     def test_random_policy(self, df_test):
