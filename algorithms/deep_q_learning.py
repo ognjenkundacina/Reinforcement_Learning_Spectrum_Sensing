@@ -45,9 +45,9 @@ class DQN(nn.Module):
         self.fc4 = nn.Linear(50, output_size)
 
     def forward(self, x):
-        x = F.leaky_relu(self.fc1(x))
-        x = F.leaky_relu(self.fc2(x))
-        x = F.leaky_relu(self.fc3_bn(self.fc3(x)))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3_bn(self.fc3(x)))
         return self.fc4(x)
 
 #    def __init__(self, input_size, output_size):
@@ -84,7 +84,7 @@ class DeepQLearningAgent:
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.00001) 
         #self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
 
-    #returns channel id: 0..15
+    #returns channel id: 0..7
     def get_action(self, state):
         if random.random() > self.epsilon:
             self.policy_net.eval()
@@ -104,8 +104,8 @@ class DeepQLearningAgent:
 
     def train(self, df_train, n_episodes, episode_length):
 
-        length_df_train = df_train.shape[0]
         total_episode_rewards = []
+        length_df_train = df_train.shape[0]
         for i_episode in range(n_episodes):
             if (i_episode % 1 == 0):
                 print ("Episode: ", i_episode)
@@ -122,11 +122,11 @@ class DeepQLearningAgent:
 
             for index, row in df_train_episode.iterrows(): 
                 i += 1
-                if (i <= 16):
+                if (i <= 32):
                     continue
-                action = self.get_action(state) #0..15
-                if (action > 15):  #todo remove this later
-                    print ("Error, action has value greater than 15")
+                action = self.get_action(state) #0..7
+                if (action > 7):  #todo remove this later
+                    print ("Error, action has value greater than 7")
                 obs = get_obs_from_df_row(row)
                 next_state, reward = self.environment.step(action, obs)
                 reward = torch.tensor([reward], dtype=torch.float)
@@ -146,26 +146,21 @@ class DeepQLearningAgent:
                 print ("total_episode_reward: ", total_episode_reward)
 
             total_episode_rewards.append(total_episode_reward)
-
+            
             if i_episode % self.target_update == 0:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
                 
-            if (i_episode % 500 == 0):
-                torch.save(self.policy_net.state_dict(), "policy_net")   
-
         torch.save(self.policy_net.state_dict(), "policy_net")
 
         x_axis = [1 + j for j in range(len(total_episode_rewards))]
         plt.plot(x_axis, total_episode_rewards)
         plt.xlabel('Episode number') 
         plt.ylabel('Episode bit error rate') 
-        plt.savefig("episode_bit_err_rate.png")
-
-
+        plt.savefig("episode_bit_err_rate.png")       
 
     def test(self, df_test):
         state = self.reset_environment_training(df_test) 
-        bit_error_rate_abs = 0 
+        bit_error_rate_abs = 0
         total_discounted_reward = 0
 
         self.policy_net.load_state_dict(torch.load("policy_net"))
@@ -174,54 +169,50 @@ class DeepQLearningAgent:
 
         for index, row in df_test.iterrows():
             i += 1
-            if (i <= 16):
+            if (i <= 32):
                 continue
             state = torch.tensor([state], dtype=torch.float)
             action = self.policy_net(state).max(1)[1].view(1, 1)
-            if (action > 15):
-                print ("Error, action has value greater than 15")
+            if (action > 7):
+                print ("Error, action has value greater than 7")
             
             obs = get_obs_from_df_row(row)
             next_state, reward = self.environment.step(action, obs)
             if (reward > 0):
                 bit_error_rate_abs += reward
-            total_discounted_reward += reward * self.gamma**(i-17)
+            total_discounted_reward += reward * self.gamma**(i-33)
             state = next_state
-        bit_error_rate_percent = bit_error_rate_abs * 100.0 / ((df_test.shape[0] - 16.0) * 1.0)
+        bit_error_rate_percent = bit_error_rate_abs * 100.0 / ((df_test.shape[0] - 32.0) * 1.0)
         print ("Bit error rate ", bit_error_rate_percent)
-        print ("Bit error rate abs: ", bit_error_rate_abs)
-        print ("Number of messages: ", df_test.shape[0] - 16.0)
         print ("Test set discounted reward ", total_discounted_reward)
-
         return bit_error_rate_percent
-        
         
     def test_random_policy(self, df_test):
         state = self.reset_environment_training(df_test) 
-        total_reward = 0 
         total_discounted_reward = 0
+        bit_error_rate_abs = 0
 
-        self.policy_net.load_state_dict(torch.load("policy_net"))
-        self.policy_net.eval()
         i = 0
 
         for index, row in df_test.iterrows():
             i += 1
-            if (i <= 16):
+            if (i <= 32):
                 continue
             state = torch.tensor([state], dtype=torch.float)
             action = torch.tensor([[random.randint(0, self.n_actions-1)]], dtype=torch.int)
-            if (action > 15):
-                print ("Error, action has value greater than 15")
+            if (action > 7):
+                print ("Error, action has value greater than 7")
             
             obs = get_obs_from_df_row(row)
             next_state, reward = self.environment.step(action, obs)
-            total_reward += reward
-            total_discounted_reward += reward * self.gamma**(i-17)
+            if (reward > 0):
+                bit_error_rate_abs += reward
+            total_discounted_reward += reward * self.gamma**(i-33)
             state = next_state
-        print ("Random policy test set reward ", total_reward)
-        print ("Random policy test set discounted reward ", total_discounted_reward)
-        
+        bit_error_rate_percent = bit_error_rate_abs * 100.0 / ((df_test.shape[0] - 32.0) * 1.0)
+        print ("Bit error rate ", bit_error_rate_percent)
+        print ("Test set discounted reward ", total_discounted_reward)
+
 
     def optimize_model(self):
         if len(self.memory) < self.batch_size:

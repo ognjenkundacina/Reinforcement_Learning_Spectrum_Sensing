@@ -12,9 +12,9 @@ class Environment(gym.Env):
         self.state = None
         self.state_space_dims = 256
         #self.action_space_dims = 1
-        #actions are 0..15
-        self.n_actions = 16
-
+        #actions are 0..7
+        self.n_actions = 8
+        
     def _obs_intersect_action(self, obs, action):
         temp = [0 for j in range(self.n_actions)]
         if (obs[action] == 1):
@@ -33,11 +33,14 @@ class Environment(gym.Env):
         if (start_size != len(self.state)):
             print("Error in update state")
 
+        if (256 != len(self.state)):
+            print("Error: state size not equal to 256")
+
         reward = self.calculate_reward(action, obs)
 
         return next_state, reward
 
-    #action takes values 0..15, so do indices of obs that has 16 values
+    #action takes values 0..7, so do indices of obs that has 8 values
     def calculate_reward(self, action, obs):
         reward = 0.0
         if (obs[action] == 1):
@@ -51,3 +54,4 @@ class Environment(gym.Env):
     def reset(self, state_variables):
         self.state = state_variables
         return self.state
+

@@ -8,27 +8,19 @@ import matplotlib.pyplot as plt
 
 def load_dataset(split_index):
     script_dir = os.path.dirname(__file__)
-    file_path = os.path.join(script_dir, './dataset/simple_correlated.csv') #5200 rows
-    #file_path = os.path.join(script_dir, './dataset/perfectly_correlated.csv') #5500 rows
-    #file_path = os.path.join(script_dir, './dataset/perfectly_correlated5200.csv') #5200 rows
-    #file_path = os.path.join(script_dir, './dataset/real_data_trace.csv') #5500 rows
-    #file_path = os.path.join(script_dir, './dataset/single_channel_no_prob.csv') #5200 rows
-    #file_path = os.path.join(script_dir, './dataset/single_channel_no_prob_strange_order.csv') #5200 rows
-    #file_path = os.path.join(script_dir, './dataset/single_channel_with_switching_prob.csv') #5200 rows
-    #file_path = os.path.join(script_dir, './dataset/multiple_channels_with_switching_prob.csv') #5200 rows
-    #file_path = os.path.join(script_dir, './dataset/multiple_channels_no_prob.csv') #5200 rows
-
+    file_path = os.path.join(script_dir, './dataset/real_data_trace.csv')
+    #file_path = os.path.join(script_dir, './dataset/real_data_trace_reduced.csv')
     df = pd.read_csv(file_path)
-
+    least_good_columns = ['channel0', 'channel1', 'channel2', 'channel3', 'channel5', 'channel6', 'channel7', 'channel11'] 
+    df = df[least_good_columns]
     df_train = df[df.index < split_index]
     df_test = df[df.index >= split_index]
 
     return df_train, df_test
 
 def main():
-
     split_index = 4600
-    df_train, df_test = load_dataset(split_index)
+    df_train, df_test = load_dataset(split_index)  
 
     environment = Environment()
     agent = DeepQLearningAgent(environment)
@@ -40,9 +32,11 @@ def main():
     agent.train(df_train, n_episodes, episode_length)
     t2 = time.time()
     print ('agent training finished in', t2-t1)
-
     print ('Test on the test dataset')
     bit_error_rate_percent = agent.test(df_test)
+    #agent.test_random_policy(df_test)
+        
+
 
 if __name__ == '__main__':
   main()
