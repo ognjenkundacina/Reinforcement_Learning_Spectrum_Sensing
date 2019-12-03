@@ -158,14 +158,14 @@ class DeepQLearningAgent:
         x_axis = [1 + j for j in range(len(total_episode_rewards))]
         plt.plot(x_axis, total_episode_rewards)
         plt.xlabel('Episode number') 
-        plt.ylabel('Episode bit error rate') 
-        plt.savefig("episode_bit_err_rate.png")
+        plt.ylabel('Total episode reward') 
+        plt.savefig("total_episode_rewards.png")
 
 
 
     def test(self, df_test):
         state = self.reset_environment_training(df_test) 
-        bit_error_rate_abs = 0 
+        transfered_messages = 0 
         total_discounted_reward = 0
 
         self.policy_net.load_state_dict(torch.load("policy_net"))
@@ -184,16 +184,16 @@ class DeepQLearningAgent:
             obs = get_obs_from_df_row(row)
             next_state, reward = self.environment.step(action, obs)
             if (reward > 0):
-                bit_error_rate_abs += reward
+                transfered_messages += reward
             total_discounted_reward += reward * self.gamma**(i-17)
             state = next_state
-        bit_error_rate_percent = bit_error_rate_abs * 100.0 / ((df_test.shape[0] - 16.0) * 1.0)
-        print ("Bit error rate ", bit_error_rate_percent)
-        print ("Bit error rate abs: ", bit_error_rate_abs)
+        transfered_messages_percent = transfered_messages * 100.0 / ((df_test.shape[0] - 16.0) * 1.0)
+        print ("Transfered messages percent ", transfered_messages_percent)
+        print ("Transfered messages abs: ", transfered_messages)
         print ("Number of messages: ", df_test.shape[0] - 16.0)
         print ("Test set discounted reward ", total_discounted_reward)
 
-        return bit_error_rate_percent
+        return transfered_messages_percent
         
         
     def test_random_policy(self, df_test):
